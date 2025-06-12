@@ -39,13 +39,14 @@ def serialize_book(book) -> dict:
     return {
         "id": str(book["_id"]),
         "bookName": book.get("bookName"),
+        "authorName": book.get("authorName"),  # Fixed: using authorName instead of author
         "description": book.get("description"),
         "bookImages": book.get("bookImages", []),
         "created_at": book.get("created_at"),
         "user_id": book.get("user_id"),
         "genre": book.get("genre"),
-        "author": book.get("author"),
-        "bookCondition": book.get("bookCondition")
+        "bookCondition": book.get("bookCondition"),
+        "is_taken": book.get("is_taken", False)
     }
 
 # Existing Authentication Routes
@@ -451,6 +452,63 @@ async def track_book_interaction(book_id: str, interaction: BookInteraction):
         raise HTTPException(status_code=500, detail=str(e))
 
 # Existing Book Routes
+@app.get("/books/")
+async def get_all_books(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000)
+):
+    try:
+        books_cursor = db.books.find().skip(skip).limit(limit).sort("created_at", -1)
+        books = []
+        async for book in books_cursor:
+            books.append(serialize_book(book))
+
+        total_books = await db.books.count_documents({})
+        
+        return {
+            "message": "Books fetched successfully",
+            "total_books": total_books,
+            "returned_books": len(books),
+            "skip": skip,
+            "limit": limit,
+            "books": books
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching books: {str(e)}")
+
+@app.get("/users/{user_id}/books")
+async def get_user_books(
+    user_id: str,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000)
+):
+    try:
+        # Verify user exists
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        # Get user's books
+        books_cursor = db.books.find({"user_id": user_id}).skip(skip).limit(limit).sort("created_at", -1)
+        books = []
+        async for book in books_cursor:
+            books.append(serialize_book(book))
+
+        total_user_books = await db.books.count_documents({"user_id": user_id})
+        
+        return {
+            "message": f"Books for user {user['fName']} {user['lName']} fetched successfully",
+            "user_id": user_id,
+            "user_name": f"{user['fName']} {user['lName']}",
+            "total_user_books": total_user_books,
+            "returned_books": len(books),
+            "skip": skip,
+            "limit": limit,
+            "books": books
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching user books: {str(e)}")
+
 @app.post("/books/")
 async def add_new_book(book: PostBookModel):
     try:
@@ -497,6 +555,24 @@ async def update_book(book_id: str, updated_data: UpdateBookModel):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating book: {str(e)}")
 
+@app.delete("/books/{book_id}")
+async def delete_book(book_id: str):
+    try:
+        # Check if book exists
+        book = await db.books.find_one({"_id": ObjectId(book_id)})
+        if not book:
+            raise HTTPException(status_code=404, detail="Book not found")
+            
+        # Delete the book
+        result = await db.books.delete_one({"_id": ObjectId(book_id)})
+        
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Book not found")
+            
+        return {"message": "Book deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting book: {str(e)}")
+
 @app.get("/getBooks")
 async def get_featured_books():
     try:
@@ -528,7 +604,7 @@ async def get_book_details(book_id: str):
         book_detail = {
             "book_id": str(book["_id"]),
             "book_name": book.get("bookName"),
-            "author": book.get("author"),
+            "author_name": book.get("authorName"),  # Fixed: using authorName
             "book_owner": {
                 "user_id": str(user["_id"]) if user else None,
                 "name": f"{user.get('fName', '')} {user.get('lName', '')}".strip() if user else "Unknown",

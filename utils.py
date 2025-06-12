@@ -2,9 +2,10 @@ from passlib.context import CryptContext
 import jwt
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
+import os
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
+SECRET_KEY=os.getenv("SECRET_KEY","5c27d038c9b3c6cd2520b041e90a252a199a2743834a45bf45ad477544984197")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 

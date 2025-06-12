@@ -6,7 +6,7 @@ from datetime import datetime
 
 # Configure Gemini AI
 GEMINI_API_KEY = "AIzaSyARpf8-ge_UkDa4s4b3ANhVMCywqjp9WW4"
-genai.configure(api_key=GEMINI_API_KEY)
+# genai.configure(api_key=GEMINI_API_KEY)
 
 class AIRecommendationService:
     def __init__(self):
