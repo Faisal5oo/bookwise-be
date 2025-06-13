@@ -6,6 +6,7 @@ class PostBookModel(BaseModel):
     user_id: str 
     bookName: str
     authorName: str
+    genre: str  # Added genre field
     description: Optional[str] = None
     bookCondition: str
     bookImages: List[HttpUrl] = []

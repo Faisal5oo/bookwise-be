@@ -5,12 +5,18 @@ from models.preference_models import AIRecommendation
 from datetime import datetime
 
 # Configure Gemini AI
-GEMINI_API_KEY = "AIzaSyARpf8-ge_UkDa4s4b3ANhVMCywqjp9WW4"
-# genai.configure(api_key=GEMINI_API_KEY)
+GEMINI_API_KEY = "AIzaSyDso1cCz2jDpRpKGKT-HAf0vNQC04F476U"
+genai.configure(api_key=GEMINI_API_KEY)
 
 class AIRecommendationService:
     def __init__(self):
-        self.model = genai.GenerativeModel('gemini-pro')
+        try:
+            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            self.is_available = True
+        except Exception as e:
+            print(f"AI Service initialization error: {e}")
+            self.model = None
+            self.is_available = False
     
     async def generate_book_recommendations(
         self, 
@@ -20,6 +26,10 @@ class AIRecommendationService:
         available_books: List[Dict[str, Any]]
     ) -> List[AIRecommendation]:
         """Generate AI-powered book recommendations using Gemini"""
+        
+        # Check if AI service is available
+        if not self.is_available or not self.model:
+            return self._fallback_recommendations(user_id, user_preferences, available_books)
         
         try:
             # Prepare context for AI
@@ -64,7 +74,7 @@ class AIRecommendationService:
                 {
                     "id": book["id"],
                     "title": book.get("bookName", ""),
-                    "author": book.get("author", ""),
+                    "author": book.get("authorName", ""),
                     "genre": book.get("genre", ""),
                     "description": book.get("description", ""),
                     "condition": book.get("bookCondition", "")
@@ -172,9 +182,9 @@ class AIRecommendationService:
                 reasons.append(f"Matches your favorite genre: {book['genre']}")
             
             # Match by author
-            if book.get("author") in preferences.get("favorite_authors", []):
+            if book.get("authorName") in preferences.get("favorite_authors", []):
                 match_percentage += 30
-                reasons.append(f"By your favorite author: {book['author']}")
+                reasons.append(f"By your favorite author: {book['authorName']}")
             
             # Basic scoring for unknown preferences
             if not preferences.get("favorite_genres") and not preferences.get("favorite_authors"):
@@ -200,6 +210,10 @@ class AIRecommendationService:
         interactions: List[Dict[str, Any]]
     ) -> str:
         """Generate AI-powered reading insights"""
+        
+        # Check if AI service is available
+        if not self.is_available or not self.model:
+            return "Keep up the great reading habits! Every book you explore expands your knowledge and imagination."
         
         try:
             prompt = f"""
